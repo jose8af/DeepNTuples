@@ -93,7 +93,8 @@ void ntuple_JetInfo::initBranches(TTree* tree){
     addBranch(tree,"jet_hflav", &jet_hflav_);
     addBranch(tree,"jet_pflav", &jet_pflav_);
     addBranch(tree,"jet_phflav", &jet_phflav_);
-
+    addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);
+    addBranch(tree,"had_flav_match", &had_flav_match_);
     // jet regression
     addBranch(tree,"jet_genmatch_pt", &jet_genmatch_pt_);
     addBranch(tree,"jet_genmatch_wnu_pt", &jet_genmatch_wnu_pt_);
@@ -903,6 +904,18 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     jet_puId_= 0;
     jet_hflav_=abs(jet.hadronFlavour());
     jet_pflav_=abs(jet.partonFlavour());
+    //charge tag
+    jet_pflavCharge_ = 0;
+    std::cout <<  jet.hadronFlavour() <<  std::endl;
+    if (isB_ || isC_  || isU_ || isD_ || isS_ ){ //hadronFlavour is abs
+         if(jet.partonFlavour() > 0) jet_pflavCharge_ = +1;
+         if(jet.partonFlavour() < 0) jet_pflavCharge_ = -1;
+
+    }
+
+    had_flav_match_ = 1; 
+    if ((isB_ || isC_) & (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
+    
     jet_phflav_=0;
     if(jet.genParton()) jet_phflav_=abs(jet.genParton()->pdgId());
 

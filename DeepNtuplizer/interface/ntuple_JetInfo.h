@@ -280,7 +280,7 @@ public:
     int jet_hflav_;
     int jet_pflav_;
     int jet_phflav_;
-
+    int jet_pflavCharge_;
     // quark/gluon
     float jet_qgl_;
     float QG_ptD_;
@@ -312,7 +312,7 @@ public:
 
     int muons_number_ = 0;
     int electrons_number_ = 0;
-
+    int had_flav_match_;
     float gen_pt_Recluster_;
     float gen_pt_WithNu_;
     float Delta_gen_pt_Recluster_;
