@@ -95,6 +95,7 @@ void ntuple_JetInfo::initBranches(TTree* tree){
     addBranch(tree,"jet_phflav", &jet_phflav_);
     addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);
     addBranch(tree,"had_flav_match", &had_flav_match_);
+    addBranch(tree,"jet_lepton_match", &jet_lepton_match_);
     // jet regression
     addBranch(tree,"jet_genmatch_pt", &jet_genmatch_pt_);
     addBranch(tree,"jet_genmatch_wnu_pt", &jet_genmatch_wnu_pt_);
@@ -906,7 +907,32 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     jet_pflav_=abs(jet.partonFlavour());
     //charge tag
     jet_pflavCharge_ = 0;
-    std::cout <<  jet.hadronFlavour() <<  std::endl;
+    std::cout << "=== JET DEBUG INFO ===" << std::endl;
+    std::cout << "Jet pt=" << jet_pt_ << ", eta=" << jet_eta_ << ", phi=" << jet_phi_ << ", hadronFlavour=" << jet.hadronFlavour() << std::endl;
+    
+    // Debug: Print jet constituents
+    std::cout << "Jet constituents (" << jet.numberOfDaughters() << " total):" << std::endl;
+    for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
+        const reco::Candidate* constituent = jet.daughter(i);
+        std::cout << "  Constituent " << i << ": pt=" << constituent->pt() << ", eta=" << constituent->eta() 
+                  << ", phi=" << constituent->phi() << ", pdgId=" << constituent->pdgId() << std::endl;
+    }
+    
+    // Debug: Print nearby gen particles (leptons)
+    std::cout << "Gen particles near jet (deltaR < 0.5):" << std::endl;
+    if(genParticlesHandle.isValid()) {
+        for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
+            // Check for leptons (e=11, mu=13)
+            if(abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) {
+                double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
+                if(deltaR_lep < 0.5) {
+                    std::cout << "  GenLepton: pdgId=" << gens_iter->pdgId() << ", pt=" << gens_iter->pt()
+                              << ", eta=" << gens_iter->eta() << ", phi=" << gens_iter->phi() 
+                              << ", deltaR=" << deltaR_lep << ", status=" << gens_iter->status() << std::endl;
+                }
+            }
+        }
+    }
     if (isB_ || isC_  || isU_ || isD_ || isS_ ){ //hadronFlavour is abs
          if(jet.partonFlavour() > 0) jet_pflavCharge_ = +1;
          if(jet.partonFlavour() < 0) jet_pflavCharge_ = -1;
@@ -915,6 +941,35 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 
     had_flav_match_ = 1; 
     if ((isB_ || isC_) & (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
+    
+    // Lepton matching for charge tagging
+    jet_lepton_match_ = 0;  // Initialize to no match
+    double closest_lepton_deltaR = 999.0;
+    int closest_lepton_pdgId = 0;
+    
+    if(genParticlesHandle.isValid()) {
+        for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
+            // Check for final state leptons (e=11, mu=13)
+            if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
+               gens_iter->status() == 1) {  // Final state particles
+                double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
+                if(deltaR_lep < 0.4 && deltaR_lep < closest_lepton_deltaR) {
+                    closest_lepton_deltaR = deltaR_lep;
+                    closest_lepton_pdgId = abs(gens_iter->pdgId());
+                    std::cout << "  --> MATCHED GenLepton: pdgId=" << gens_iter->pdgId() 
+                              << ", deltaR=" << deltaR_lep << " (closest so far)" << std::endl;
+                }
+            }
+        }
+    }
+    
+    // Set the matched lepton type
+    if(closest_lepton_deltaR < 0.4) {
+        jet_lepton_match_ = closest_lepton_pdgId;  // 11 for electron, 13 for muon
+        std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << std::endl;
+    } else {
+        std::cout << "No lepton match within deltaR < 0.4" << std::endl;
+    }
     
     jet_phflav_=0;
     if(jet.genParton()) jet_phflav_=abs(jet.genParton()->pdgId());
