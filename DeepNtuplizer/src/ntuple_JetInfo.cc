@@ -9,6 +9,7 @@
 #include "../interface/helpers.h"
 #include <vector>
 #include <algorithm>
+#include <cmath>
 #include "DataFormats/Math/interface/deltaR.h"
 
 using namespace std;
@@ -94,6 +95,7 @@ void ntuple_JetInfo::initBranches(TTree* tree){
     addBranch(tree,"jet_pflav", &jet_pflav_);
     addBranch(tree,"jet_phflav", &jet_phflav_);
     addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);
+    addBranch(tree,"jet_qk_charge", &jet_qk_charge_);
     addBranch(tree,"had_flav_match", &had_flav_match_);
     addBranch(tree,"jet_lepton_match", &jet_lepton_match_);
     // jet regression
@@ -919,16 +921,16 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     }
     
     // Debug: Print nearby gen particles (leptons)
-    std::cout << "Gen particles near jet (deltaR < 0.5):" << std::endl;
+    std::cout << "Gen particles near jet (deltaR < 0.4):" << std::endl;
     if(genParticlesHandle.isValid()) {
         for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
             // Check for leptons (e=11, mu=13)
             if(abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) {
                 double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
-                if(deltaR_lep < 0.5) {
+                if(deltaR_lep < 0.4) {
                     std::cout << "  GenLepton: pdgId=" << gens_iter->pdgId() << ", pt=" << gens_iter->pt()
                               << ", eta=" << gens_iter->eta() << ", phi=" << gens_iter->phi() 
-                              << ", deltaR=" << deltaR_lep << ", status=" << gens_iter->status() << std::endl;
+                              << ", deltaR=" << deltaR_lep << std::endl;
                 }
             }
         }
@@ -940,7 +942,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     }
 
     had_flav_match_ = 1; 
-    if ((isB_ || isC_) & (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
+    if ((isB_ || isC_) && (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
     
     // Lepton matching for charge tagging
     jet_lepton_match_ = 0;  // Initialize to no match
@@ -969,6 +971,31 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
         std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << std::endl;
     } else {
         std::cout << "No lepton match within deltaR < 0.4" << std::endl;
+    }
+    
+    // QK jet charge calculation: QK = sum(qi * pTi^kappa) / pTjet^kappa
+    jet_qk_charge_ = 0.0;
+    double kappa = 0.5;  // Standard kappa value for QK charge
+    double numerator = 0.0;
+    double denominator = std::pow(jet.pt(), kappa);
+    
+    // Loop over jet constituents to calculate QK charge
+    for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
+        const pat::PackedCandidate* constituent = dynamic_cast<const pat::PackedCandidate*>(jet.daughter(i));
+        if(!constituent) continue;
+        
+        double constituent_pt = constituent->pt();
+        double constituent_charge = constituent->charge();
+        
+        // Apply minimum pT cut for constituents
+        if(constituent_pt > min_candidate_pt_) {
+            numerator += constituent_charge * std::pow(constituent_pt, kappa);
+        }
+    }
+    
+    if(denominator > 0) {
+        jet_qk_charge_ = numerator / denominator;
+        std::cout << "Calculated QK charge: " << jet_qk_charge_ << std::endl;
     }
     
     jet_phflav_=0;
