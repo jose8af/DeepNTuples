@@ -14,6 +14,9 @@
 
 using namespace std;
 
+// Static member definition
+size_t ntuple_JetInfo::njets_with_lepton_match_ = 0;
+
 template<typename T> 
 class PatPtSorter {
 public:
@@ -920,21 +923,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
                   << ", phi=" << constituent->phi() << ", pdgId=" << constituent->pdgId() << std::endl;
     }
     
-    // Debug: Print nearby gen particles (leptons)
-    std::cout << "Gen particles near jet (deltaR < 0.4):" << std::endl;
-    if(genParticlesHandle.isValid()) {
-        for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
-            // Check for leptons (e=11, mu=13)
-            if(abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) {
-                double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
-                if(deltaR_lep < 0.4) {
-                    std::cout << "  GenLepton: pdgId=" << gens_iter->pdgId() << ", pt=" << gens_iter->pt()
-                              << ", eta=" << gens_iter->eta() << ", phi=" << gens_iter->phi() 
-                              << ", deltaR=" << deltaR_lep << std::endl;
-                }
-            }
-        }
-    }
+
     if (isB_ || isC_  || isU_ || isD_ || isS_ ){ //hadronFlavour is abs
          if(jet.partonFlavour() > 0) jet_pflavCharge_ = +1;
          if(jet.partonFlavour() < 0) jet_pflavCharge_ = -1;
@@ -944,16 +933,16 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     had_flav_match_ = 1; 
     if ((isB_ || isC_) && (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
     
-    // Lepton matching for charge tagging
+    // Lepton matching for charge tagging (only for B-jets, leptonic B-jets, or leptonic B-jets from C)
     jet_lepton_match_ = 0;  // Initialize to no match
     double closest_lepton_deltaR = 999.0;
     int closest_lepton_pdgId = 0;
     
-    if(genParticlesHandle.isValid()) {
+    if((isB_ || isLeptonicB_ || isLeptonicB_C_) && genParticlesHandle.isValid()) {
         for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
-            // Check for final state leptons (e=11, mu=13)
+            // Check for final state leptons (e=11, mu=13) and ensure it's the last copy
             if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
-               gens_iter->status() == 1) {  // Final state particles
+               gens_iter->status() == 1 && gens_iter->isLastCopy()) {  // Final state particles with isLastCopy()
                 double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
                 if(deltaR_lep < 0.4 && deltaR_lep < closest_lepton_deltaR) {
                     closest_lepton_deltaR = deltaR_lep;
@@ -968,6 +957,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     // Set the matched lepton type
     if(closest_lepton_deltaR < 0.4) {
         jet_lepton_match_ = closest_lepton_pdgId;  // 11 for electron, 13 for muon
+        njets_with_lepton_match_++;  // Increment counter for jets with lepton matches
         std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << std::endl;
     } else {
         std::cout << "No lepton match within deltaR < 0.4" << std::endl;
@@ -975,11 +965,10 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     
     // QK jet charge calculation: QK = sum(qi * pTi^kappa) / pTjet^kappa
     jet_qk_charge_ = 0.0;
-    double kappa = 0.5;  // Standard kappa value for QK charge
+    double kappa = 0.5;  
     double numerator = 0.0;
     double denominator = std::pow(jet.pt(), kappa);
     
-    // Loop over jet constituents to calculate QK charge
     for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
         const pat::PackedCandidate* constituent = dynamic_cast<const pat::PackedCandidate*>(jet.daughter(i));
         if(!constituent) continue;
@@ -987,7 +976,6 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
         double constituent_pt = constituent->pt();
         double constituent_charge = constituent->charge();
         
-        // Apply minimum pT cut for constituents
         if(constituent_pt > min_candidate_pt_) {
             numerator += constituent_charge * std::pow(constituent_pt, kappa);
         }

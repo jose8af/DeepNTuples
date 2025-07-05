@@ -101,6 +101,7 @@ private:
   size_t njetswithgenjet_;
   size_t njetsselected_;
   size_t njetsselected_nogen_;
+  size_t njets_with_lepton_match_;
 
   ntuple_content * addModule(ntuple_content *m, std::string name = ""){
     modules_.push_back(m);
@@ -313,6 +314,9 @@ DeepNtuplizer::beginJob()
   njetswithgenjet_=0;
   njetsselected_=0;
   njetsselected_nogen_=0;
+  njets_with_lepton_match_=0;
+  // Reset the static counter in ntuple_JetInfo
+  ntuple_JetInfo::resetLeptonMatchCounter();
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
@@ -320,12 +324,17 @@ void
 DeepNtuplizer::endJob()
 {
 
+  // Get the lepton match count from ntuple_JetInfo
+  njets_with_lepton_match_ = ntuple_JetInfo::getNJetsWithLeptonMatch();
+  
   std::cout << "total number of processed jets: " << njetstotal_<<std::endl;
   std::cout << "total number of jets with gen:  " << njetswithgenjet_<<std::endl;
   std::cout << "total number of selected jets:  "<< njetsselected_<<std::endl;
+  std::cout << "total number of jets with lepton match: "<< njets_with_lepton_match_<<std::endl;
   std::cout << "fraction of selected jets:      "<< (float)njetsselected_/(float)njetstotal_<<std::endl;
   std::cout << "fraction of selected jets with gen: "<< (float)njetsselected_/(float)njetswithgenjet_<<std::endl;
   std::cout << "fraction of selected jetsout with gen: "<< (float)njetsselected_nogen_/(float)njetsselected_<<std::endl;
+  std::cout << "fraction of jets with lepton match: "<< (float)njets_with_lepton_match_/(float)njetstotal_<<std::endl;
 
 }
 

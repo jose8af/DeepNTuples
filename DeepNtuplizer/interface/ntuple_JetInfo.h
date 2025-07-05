@@ -100,6 +100,15 @@ public:
 
     //private:
 
+    // Static counter for jets with lepton matches
+    static size_t njets_with_lepton_match_;
+    
+    // Method to get the counter value
+    static size_t getNJetsWithLeptonMatch() { return njets_with_lepton_match_; }
+    
+    // Method to reset the counter
+    static void resetLeptonMatchCounter() { njets_with_lepton_match_ = 0; }
+
     double                    jetPtMin_;
     double                    jetPtMax_;
     double                    jetAbsEtaMin_;
