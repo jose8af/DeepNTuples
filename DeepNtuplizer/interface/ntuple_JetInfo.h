@@ -324,6 +324,7 @@ public:
     int electrons_number_ = 0;
     int had_flav_match_;
     int jet_lepton_match_;  // 0=no match, 11=electron, 13=muon
+    int jet_lepton_charge_;
     float gen_pt_Recluster_;
     float gen_pt_WithNu_;
     float Delta_gen_pt_Recluster_;
