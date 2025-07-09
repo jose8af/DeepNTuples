@@ -291,6 +291,12 @@ public:
     int jet_phflav_;
     int jet_pflavCharge_;
     float jet_qk_charge_;  // QK jet charge: sum(qi * pTi^kappa) / pTjet^kappa
+    float jet_qk_charge_01_;  // QK jet charge with k=0.1
+    float jet_qk_charge_03_;  // QK jet charge with k=0.3
+    float jet_qk_charge_05_;  // QK jet charge with k=0.5
+    float jet_qk_charge_07_;  // QK jet charge with k=0.7
+    float jet_qk_charge_09_;  // QK jet charge with k=0.9
+    float jet_qk_charge_10_;  // QK jet charge with k=1.0
     // quark/gluon
     float jet_qgl_;
     float QG_ptD_;

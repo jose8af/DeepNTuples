@@ -99,6 +99,12 @@ void ntuple_JetInfo::initBranches(TTree* tree){
     addBranch(tree,"jet_phflav", &jet_phflav_);
     addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);
     addBranch(tree,"jet_qk_charge", &jet_qk_charge_);
+    addBranch(tree,"jet_qk_charge_01", &jet_qk_charge_01_);
+    addBranch(tree,"jet_qk_charge_03", &jet_qk_charge_03_);
+    addBranch(tree,"jet_qk_charge_05", &jet_qk_charge_05_);
+    addBranch(tree,"jet_qk_charge_07", &jet_qk_charge_07_);
+    addBranch(tree,"jet_qk_charge_09", &jet_qk_charge_09_);
+    addBranch(tree,"jet_qk_charge_10", &jet_qk_charge_10_);
     addBranch(tree,"had_flav_match", &had_flav_match_);
     addBranch(tree,"jet_lepton_match", &jet_lepton_match_);
     addBranch(tree, "jet_lepton_charge", &jet_lepton_charge_);
@@ -969,27 +975,41 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     }
     
     // QK jet charge calculation: QK = sum(qi * pTi^kappa) / pTjet^kappa
-    jet_qk_charge_ = 0.0;
-    double kappa = 0.5;  
-    double numerator = 0.0;
-    double denominator = std::pow(jet.pt(), kappa);
+    // Calculate for different k values: 0.1, 0.3, 0.5, 0.7, 0.9, 1.0
+    std::vector<double> kappa_values = {0.1, 0.3, 0.5, 0.7, 0.9, 1.0};
+    std::vector<float*> qk_variables = {&jet_qk_charge_01_, &jet_qk_charge_03_, &jet_qk_charge_05_, 
+                                        &jet_qk_charge_07_, &jet_qk_charge_09_, &jet_qk_charge_10_};
     
-    for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
-        const pat::PackedCandidate* constituent = dynamic_cast<const pat::PackedCandidate*>(jet.daughter(i));
-        if(!constituent) continue;
+    for(size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
+        double kappa = kappa_values[k_idx];
+        double numerator = 0.0;
+        double denominator = std::pow(jet.pt(), kappa);
         
-        double constituent_pt = constituent->pt();
-        double constituent_charge = constituent->charge();
+        for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
+            const pat::PackedCandidate* constituent = dynamic_cast<const pat::PackedCandidate*>(jet.daughter(i));
+            if(!constituent) continue;
+            
+            double constituent_pt = constituent->pt();
+            double constituent_charge = constituent->charge();
+            
+            if(constituent_pt > min_candidate_pt_) {
+                numerator += constituent_charge * std::pow(constituent_pt, kappa);
+            }
+        }
         
-        if(constituent_pt > min_candidate_pt_) {
-            numerator += constituent_charge * std::pow(constituent_pt, kappa);
+        if(denominator > 0) {
+            *(qk_variables[k_idx]) = numerator / denominator;
+        } else {
+            *(qk_variables[k_idx]) = 0.0;
         }
     }
     
-    if(denominator > 0) {
-        jet_qk_charge_ = numerator / denominator;
-        std::cout << "Calculated QK charge: " << jet_qk_charge_ << std::endl;
-    }
+    // Keep the original jet_qk_charge_ for backward compatibility (k=0.5)
+    jet_qk_charge_ = jet_qk_charge_05_;
+    
+    std::cout << "Calculated QK charges: k=0.1:" << jet_qk_charge_01_ << ", k=0.3:" << jet_qk_charge_03_ 
+              << ", k=0.5:" << jet_qk_charge_05_ << ", k=0.7:" << jet_qk_charge_07_ 
+              << ", k=0.9:" << jet_qk_charge_09_ << ", k=1.0:" << jet_qk_charge_10_ << std::endl;
     
     jet_phflav_=0;
     if(jet.genParton()) jet_phflav_=abs(jet.genParton()->pdgId());
