@@ -963,7 +963,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 	if (jet_lepton_match_ < 0 ) jet_lepton_charge_ = -1; 
 	if (jet_lepton_match_ > 0 ) jet_lepton_charge_ = +1;
         njets_with_lepton_match_++;  
-        std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << std::endl;
+        std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << "charge=" << jet_lepton_charge_ << std::endl;
     } else {
         std::cout << "No lepton match within deltaR < 0.4" << std::endl;
     }
