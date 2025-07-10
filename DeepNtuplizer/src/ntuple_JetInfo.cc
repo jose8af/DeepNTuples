@@ -1004,7 +1004,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
         }
     }
     
-    // Keep the original jet_qk_charge_ for backward compatibility (k=0.5)
+    //To not erase the original qk implemented
     jet_qk_charge_ = jet_qk_charge_05_;
     
     std::cout << "Calculated QK charges: k=0.1:" << jet_qk_charge_01_ << ", k=0.3:" << jet_qk_charge_03_ 
