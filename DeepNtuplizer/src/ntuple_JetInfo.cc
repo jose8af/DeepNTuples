@@ -16,6 +16,7 @@ using namespace std;
 
 // Static member definition
 size_t ntuple_JetInfo::njets_with_lepton_match_ = 0;
+size_t ntuple_JetInfo::njets_wo_lepton_match_ =0; 
 
 template<typename T> 
 class PatPtSorter {
@@ -949,7 +950,8 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
    
  
    if((isB_ || isLeptonicB_ || isLeptonicB_C_) && genParticlesHandle.isValid()) {
-        for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) { 
+        njets_wo_lepton_match_++;
+	for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) { 
             if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
                gens_iter->status() == 1 && gens_iter->isLastCopy()) {  
                 double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
@@ -970,16 +972,42 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 	if (jet_lepton_match_ > 0 ) jet_lepton_charge_ = +1;
         njets_with_lepton_match_++;  
         std::cout << "Final lepton match: " << jet_lepton_match_ << " (deltaR=" << closest_lepton_deltaR << ")" << "charge=" << jet_lepton_charge_ << std::endl;
-    } else {
+    } else { 
         std::cout << "No lepton match within deltaR < 0.4" << std::endl;
     }
     
-    // QK jet charge calculation: QK = sum(qi * pTi^kappa) / pTjet^kappa
-    // Calculate for different k values: 0.1, 0.3, 0.5, 0.7, 0.9, 1.0
+    
+    
     std::vector<double> kappa_values = {0.1, 0.3, 0.5, 0.7, 0.9, 1.0};
     std::vector<float*> qk_variables = {&jet_qk_charge_01_, &jet_qk_charge_03_, &jet_qk_charge_05_, 
                                         &jet_qk_charge_07_, &jet_qk_charge_09_, &jet_qk_charge_10_};
-    
+    std::vector<reco::CandidatePtr> const& constituents  = jet.getJetConstituents() ;
+ 
+    for (size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
+	    double kappa = kappa_values[k_idx];
+	    double numerator = 0.0;
+	    double denominator = std::pow(jet.pt(), kappa);  
+
+	    for (std::vector<reco::CandidatePtr>::const_iterator ic = constituents.begin(), icend = constituents.end();
+			    ic != icend;
+			    ++ic) {
+		    const reco::Candidate& cand = **ic;
+		    double pt = cand.pt();
+		    double charge = cand.charge();
+
+		    if (pt > min_candidate_pt_) {
+			    numerator += charge * std::pow(pt, kappa);
+		    }
+	    }
+
+	    if (denominator > 0) {
+		    *(qk_variables[k_idx]) = numerator / denominator;
+	    } else {
+		    *(qk_variables[k_idx]) = 0.0;
+	    }
+    }
+
+/*
     for(size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
         double kappa = kappa_values[k_idx];
         double numerator = 0.0;
@@ -1003,7 +1031,8 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
             *(qk_variables[k_idx]) = 0.0;
         }
     }
-    
+  */
+
     //To not erase the original qk implemented
     jet_qk_charge_ = jet_qk_charge_05_;
     

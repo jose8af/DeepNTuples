@@ -102,10 +102,11 @@ public:
 
     // Static counter for jets with lepton matches
     static size_t njets_with_lepton_match_;
-    
+    static size_t njets_wo_lepton_match_;
     // Method to get the counter value
     static size_t getNJetsWithLeptonMatch() { return njets_with_lepton_match_; }
-    
+    static size_t getNJetsWOLeptonMatch() { return njets_wo_lepton_match_; }
+
     // Method to reset the counter
     static void resetLeptonMatchCounter() { njets_with_lepton_match_ = 0; }
 
