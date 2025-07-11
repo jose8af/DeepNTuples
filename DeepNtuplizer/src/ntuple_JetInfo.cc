@@ -16,7 +16,7 @@ using namespace std;
 
 // Static member definition
 size_t ntuple_JetInfo::njets_with_lepton_match_ = 0;
-size_t ntuple_JetInfo::njets_wo_lepton_match_ =0; 
+size_t ntuple_JetInfo::njets_leptonic_ =0; 
 
 template<typename T> 
 class PatPtSorter {
@@ -949,22 +949,24 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     jet_lepton_charge_ = 0;
    
  
-   if((isB_ || isLeptonicB_ || isLeptonicB_C_) && genParticlesHandle.isValid()) {
-        njets_wo_lepton_match_++;
-	for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) { 
-            if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
-               gens_iter->status() == 1 && gens_iter->isLastCopy()) {  
-                double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
-                if(deltaR_lep < 0.4 && deltaR_lep < closest_lepton_deltaR) {
-                    closest_lepton_deltaR = deltaR_lep;
-                    closest_lepton_pdgId = gens_iter->pdgId();
-                    std::cout << "  --> MATCHED GenLepton: pdgId=" << gens_iter->pdgId() 
-                              << ", deltaR=" << deltaR_lep << " (closest so far)" << std::endl;
-                }
-            }
-        }
+    if((isLeptonicB_ || isLeptonicB_C_)) {
+	    njets_leptonic_++;
+	    if(genParticlesHandle.isValid()){        
+		    for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) { 
+			    if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
+					    gens_iter->status() == 1 && gens_iter->isLastCopy()) {  
+				    double deltaR_lep = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
+				    if(deltaR_lep < 0.4 && deltaR_lep < closest_lepton_deltaR) {
+					    closest_lepton_deltaR = deltaR_lep;
+					    closest_lepton_pdgId = gens_iter->pdgId();
+					    std::cout << "  --> MATCHED GenLepton: pdgId=" << gens_iter->pdgId() 
+						    << ", deltaR=" << deltaR_lep << " (closest so far)" << std::endl;
+				    }
+			    }
+		    }
+	    }
     }
-   
+
     // Set the matched lepton type
     if(closest_lepton_deltaR < 0.4) {
         jet_lepton_match_ = closest_lepton_pdgId;  // 11 for electron, 13 for muon
@@ -981,6 +983,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     std::vector<double> kappa_values = {0.1, 0.3, 0.5, 0.7, 0.9, 1.0};
     std::vector<float*> qk_variables = {&jet_qk_charge_01_, &jet_qk_charge_03_, &jet_qk_charge_05_, 
                                         &jet_qk_charge_07_, &jet_qk_charge_09_, &jet_qk_charge_10_};
+    
     std::vector<reco::CandidatePtr> const& constituents  = jet.getJetConstituents() ;
  
     for (size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
@@ -1005,7 +1008,7 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 	    } else {
 		    *(qk_variables[k_idx]) = 0.0;
 	    }
-    }
+    } 
 
 /*
     for(size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
