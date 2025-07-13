@@ -984,21 +984,19 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     std::vector<float*> qk_variables = {&jet_qk_charge_01_, &jet_qk_charge_03_, &jet_qk_charge_05_, 
                                         &jet_qk_charge_07_, &jet_qk_charge_09_, &jet_qk_charge_10_};
     
-    std::vector<reco::CandidatePtr> const& constituents  = jet.getJetConstituents() ;
- 
     for (size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
 	    double kappa = kappa_values[k_idx];
 	    double numerator = 0.0;
 	    double denominator = std::pow(jet.pt(), kappa);  
 
-	    for (std::vector<reco::CandidatePtr>::const_iterator ic = constituents.begin(), icend = constituents.end();
-			    ic != icend;
-			    ++ic) {
-		    const reco::Candidate& cand = **ic;
-		    double pt = cand.pt();
-		    double charge = cand.charge();
+	    const auto& daughters = jet.daughterPtrVector();
+	    for (const auto& daughter : daughters) {
+		    if (!daughter.isNonnull()) continue;
+		    
+		    double pt = daughter->pt();
+		    double charge = daughter->charge();
 
-		    if (pt > min_candidate_pt_) {
+		    if (pt > 0.95) {  // 950 MeV cut
 			    numerator += charge * std::pow(pt, kappa);
 		    }
 	    }
@@ -1009,32 +1007,6 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 		    *(qk_variables[k_idx]) = 0.0;
 	    }
     } 
-
-/*
-    for(size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
-        double kappa = kappa_values[k_idx];
-        double numerator = 0.0;
-        double denominator = std::pow(jet.pt(), kappa);
-        
-        for(size_t i = 0; i < jet.numberOfDaughters(); ++i) {
-            const pat::PackedCandidate* constituent = dynamic_cast<const pat::PackedCandidate*>(jet.daughter(i));
-            if(!constituent) continue;
-            
-            double constituent_pt = constituent->pt();
-            double constituent_charge = constituent->charge();
-            
-            if(constituent_pt > min_candidate_pt_) {
-                numerator += constituent_charge * std::pow(constituent_pt, kappa);
-            }
-        }
-        
-        if(denominator > 0) {
-            *(qk_variables[k_idx]) = numerator / denominator;
-        } else {
-            *(qk_variables[k_idx]) = 0.0;
-        }
-    }
-  */
 
     //To not erase the original qk implemented
     jet_qk_charge_ = jet_qk_charge_05_;
