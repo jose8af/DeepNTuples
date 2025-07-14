@@ -951,16 +951,11 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     if((isLeptonicB_ || isLeptonicB_C_)) {
 	    njets_leptonic_++;
 	    if(genParticlesHandle.isValid()){        
-		    for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) { 
-			    // First calculate deltaR between jet and gen particle
+		    for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {  
 			    double deltaR_gen = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
-
-			    // Only consider particles within the cone
-			    if(deltaR_gen < 0.4) {
-				    // Then check if this particle within the cone is a lepton
+			    if(deltaR_gen < 0.4) { 
 				    if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
 						    gens_iter->status() == 1 && gens_iter->isLastCopy()) {  
-					    // Among leptons in the cone, find the closest one
 					    if(deltaR_gen < closest_lepton_deltaR) {
 						    closest_lepton_deltaR = deltaR_gen;
 						    closest_lepton_pdgId = gens_iter->pdgId();
