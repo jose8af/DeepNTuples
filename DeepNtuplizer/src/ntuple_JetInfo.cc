@@ -98,17 +98,10 @@ void ntuple_JetInfo::initBranches(TTree* tree){
     addBranch(tree,"jet_hflav", &jet_hflav_);
     addBranch(tree,"jet_pflav", &jet_pflav_);
     addBranch(tree,"jet_phflav", &jet_phflav_);
-    addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);
-    addBranch(tree,"jet_qk_charge", &jet_qk_charge_);
-    addBranch(tree,"jet_qk_charge_01", &jet_qk_charge_01_);
-    addBranch(tree,"jet_qk_charge_03", &jet_qk_charge_03_);
+    addBranch(tree,"jet_pflavCharge", &jet_pflavCharge_);    
     addBranch(tree,"jet_qk_charge_05", &jet_qk_charge_05_);
-    addBranch(tree,"jet_qk_charge_07", &jet_qk_charge_07_);
-    addBranch(tree,"jet_qk_charge_09", &jet_qk_charge_09_);
     addBranch(tree,"jet_qk_charge_10", &jet_qk_charge_10_);
-    addBranch(tree,"had_flav_match", &had_flav_match_);
-    addBranch(tree,"jet_lepton_match", &jet_lepton_match_);
-    addBranch(tree, "jet_lepton_charge", &jet_lepton_charge_);
+    addBranch(tree,"had_flav_match", &had_flav_match_); 
     // jet regression
     addBranch(tree,"jet_genmatch_pt", &jet_genmatch_pt_);
     addBranch(tree,"jet_genmatch_wnu_pt", &jet_genmatch_wnu_pt_);
@@ -933,65 +926,66 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
     }
     */
 
-    if (isB_ || isC_  || isU_ || isD_ || isS_ ){ //hadronFlavour is abs
-         if(jet.partonFlavour() > 0) jet_pflavCharge_ = +1;
-         if(jet.partonFlavour() < 0) jet_pflavCharge_ = -1;
-
+    
+    if (isC_ || isU_)
+    {
+	    if(jet.partonFlavour() > 0) jet_pflavCharge_ = +1;
+	    if(jet.partonFlavour() < 0) jet_pflavCharge_ = -1;
+    }
+    if(isB_ || isD_ || isS_)
+    {
+	    if(jet.partonFlavour() > 0) jet_pflavCharge_ = -1; 
+	    if(jet.partonFlavour() < 0) jet_pflavCharge_ = +1;
     }
 
     had_flav_match_ = 1; 
     if ((isB_ || isC_) && (abs(jet.partonFlavour()) != jet.hadronFlavour()))   had_flav_match_ = 0;
     
-    // Lepton matching 
-    jet_lepton_match_ = 0;  
+    // Lepton matching   
     double closest_lepton_deltaR = 999.0;
     int closest_lepton_pdgId = 0;
-    jet_lepton_charge_ = 0;
-  
+    
+
     if((isLeptonicB_ || isLeptonicB_C_)) {
 	    njets_leptonic_++;
-	    if(genParticlesHandle.isValid()){        
-		    for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {  
+	    if(genParticlesHandle.isValid()){
+		    for (auto gens_iter = genParticlesHandle->begin(); gens_iter != genParticlesHandle->end(); ++gens_iter) {
 			    double deltaR_gen = reco::deltaR(jet_eta_, jet_phi_, gens_iter->eta(), gens_iter->phi());
-			    if(deltaR_gen < 0.4) { 
-				    if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) && 
-						    gens_iter->status() == 1 && gens_iter->isLastCopy()) {  
+			    if(deltaR_gen < 0.4) {
+				    if((abs(gens_iter->pdgId()) == 11 || abs(gens_iter->pdgId()) == 13) &&
+						    gens_iter->status() == 1 && gens_iter->isLastCopy()) {
 					    if(deltaR_gen < closest_lepton_deltaR) {
 						    closest_lepton_deltaR = deltaR_gen;
 						    closest_lepton_pdgId = gens_iter->pdgId();
-						    std::cout << "  --> MATCHED GenLepton: pdgId=" << gens_iter->pdgId() 
+						    std::cout << "  --> MATCHED GenLepton: pdgId=" << gens_iter->pdgId()
 							    << ", deltaR=" << deltaR_gen << " (closest so far)" << std::endl;
 					    }
 				    }
 			    }
 		    }
 	    }
-    } 
+ 
+	    if(closest_lepton_deltaR < 0.4) {
+		    njets_with_lepton_match_++; 
+		    if (closest_lepton_pdgId < 0 ) jet_pflavCharge_ = +1;
+		    if (closest_lepton_pdgId > 0 ) jet_pflavCharge_ = -1;
 
-   
-    if(closest_lepton_deltaR < 0.4) {
-	    njets_with_lepton_match_++;   
-	    jet_lepton_match_ = closest_lepton_pdgId;  // 11 for electron, 13 for muon
-	    if (jet_lepton_match_ < 0 ) jet_pflavCharge_ = -1;
-	    if (jet_lepton_match_ > 0 ) jet_pflavCharge_ = +1;
-
-	    std::cout << "RESULT: Matched to " << (abs(jet_lepton_match_)==11 ? "electron" : "muon") 
-		    << " with charge=" << jet_pflavCharge_ 
-		    << ", deltaR=" << closest_lepton_deltaR << std::endl;
-    }
-    else 
-    {
-	    had_flav_match_  = 0; 
-	    std::cout << "RESULT: No lepton match" << std::endl;
+		    std::cout << "RESULT: Matched to " << (abs(closest_lepton_pdgId)==11 ? "electron" : "muon")
+			    << " with charge=" << jet_pflavCharge_
+			    << ", deltaR=" << closest_lepton_deltaR << std::endl;
+	    }
+	    else { 
+		    had_flav_match_ = 0;
+		    std::cout << "RESULT: No lepton match for leptonic jet" << std::endl;
+	    }
     }
 
 
     std::cout << "===========================================" << std::endl;
  
     
-    std::vector<double> kappa_values = {0.1, 0.3, 0.5, 0.7, 0.9, 1.0};
-    std::vector<float*> qk_variables = {&jet_qk_charge_01_, &jet_qk_charge_03_, &jet_qk_charge_05_, 
-                                        &jet_qk_charge_07_, &jet_qk_charge_09_, &jet_qk_charge_10_};
+    std::vector<double> kappa_values = {0.5, 1.0};
+    std::vector<float*> qk_variables = {&jet_qk_charge_05_, &jet_qk_charge_10_};
     
     for (size_t k_idx = 0; k_idx < kappa_values.size(); ++k_idx) {
 	    double kappa = kappa_values[k_idx];
@@ -1019,13 +1013,8 @@ bool ntuple_JetInfo::fillBranches(const pat::Jet & jet, const size_t& jetidx, co
 		    *(qk_variables[k_idx]) = 0.0;
 	    }
     } 
-
-    //To not erase the original qk implemented
-    jet_qk_charge_ = jet_qk_charge_05_;
     
-    std::cout << "Calculated QK charges: k=0.1:" << jet_qk_charge_01_ << ", k=0.3:" << jet_qk_charge_03_ 
-              << ", k=0.5:" << jet_qk_charge_05_ << ", k=0.7:" << jet_qk_charge_07_ 
-              << ", k=0.9:" << jet_qk_charge_09_ << ", k=1.0:" << jet_qk_charge_10_ << std::endl;
+    std::cout << "Calculated QK charges: k=0.5:" << jet_qk_charge_05_ << ", k=1.0:" << jet_qk_charge_10_ << std::endl;
     
     jet_phflav_=0;
     if(jet.genParton()) jet_phflav_=abs(jet.genParton()->pdgId());
